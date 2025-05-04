@@ -12,17 +12,30 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
         details: {
-          yul: true
-        }
+          yul: true,
+        },
       },
       viaIR: true,
     },
   },
+  networks: {
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+    mainnet: {
+      url: process.env.MAINNET_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
   gasReporter: {
     enabled: REPORT_GAS,
-    currency: 'USD',
+    currency: "USD",
     gasPrice: 50,
-    token: 'ETH',
+    token: "ETH",
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     excludeContracts: [],
     src: "./contracts",
@@ -34,11 +47,11 @@ const config: HardhatUserConfig = {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
-    artifacts: "./artifacts"
+    artifacts: "./artifacts",
   },
   mocha: {
-    timeout: 40000
-  }
+    timeout: 40000,
+  },
 };
 
 export default config;
