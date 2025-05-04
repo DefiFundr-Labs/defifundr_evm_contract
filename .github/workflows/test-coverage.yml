@@ -26,7 +26,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install --legacy-peer-deps --no-optional
+        env:
+          npm_config_platform: linux
+        run: npm install --legacy-peer-deps --no-optional --ignore-scripts --no-package-lock
 
       - name: Install bc
         run: sudo apt-get install -y bc
