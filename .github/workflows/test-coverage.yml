@@ -26,10 +26,8 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        env:
-          npm_config_platform: linux
-        run: npm install --legacy-peer-deps -f
-
+        run: yarn install
+        
       - name: Install bc
         run: sudo apt-get install -y bc
 
