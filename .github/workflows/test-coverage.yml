@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ main ]
   push:
-    branches: [ main ]
+    branches: [ main, ci/github-actions-workflow ]
 
 # Permissions are minimal since we're not commenting on PRs
 permissions:
@@ -26,8 +26,8 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: yarn install
-        
+        run: npm install -f
+
       - name: Install bc
         run: sudo apt-get install -y bc
 
