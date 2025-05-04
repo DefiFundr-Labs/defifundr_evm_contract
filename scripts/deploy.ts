@@ -3,83 +3,71 @@ import { ethers } from "hardhat";
 import path from "path";
 
 async function main() {
-    // Get the current timestamp
-    const currentTimestamp = Math.floor(Date.now() / 1000);
-    // Set unlock time to 1 year from now
-    const unlockTime = currentTimestamp + 365 * 24 * 60 * 60;
+  // Get network details
+  const network = await ethers.provider.getNetwork();
+  console.log(
+    `Deploying to network: ${network.name} (chain ID: ${network.chainId})`
+  );
 
-    // Get network details
-    const network = await ethers.provider.getNetwork();
-    console.log(`Deploying to network: ${network.name} (chain ID: ${network.chainId})`);
+  // Deploy contracts
+  const contracts = [{ name: "Lock", args: [] }];
 
-    // Deploy the Lock contract
-    console.log(`Deploying with unlock time: ${unlockTime} (${new Date(unlockTime * 1000).toUTCString()})`);
+  const deployments: Record<string, any> = {
+    network: network.name,
+    chainId: Number(network.chainId),
+    deployedAt: Math.floor(Date.now() / 1000),
+    contracts: {},
+  };
 
-    const Lock = await ethers.getContractFactory("Lock");
+  for (const { name, args } of contracts) {
+    console.log(`\nDeploying ${name}...`);
 
-    // Estimate gas before deployment to check if it meets our budget
-    const deployTx = await Lock.getDeployTransaction(unlockTime, { value: ethers.parseEther("1") });
+    const Contract = await ethers.getContractFactory(name);
+
+    // Estimate gas
+    const deployTx = await Contract.getDeployTransaction(...args);
     const estimatedGas = await ethers.provider.estimateGas(deployTx);
     console.log(`Estimated deployment gas: ${estimatedGas.toString()}`);
 
-    // Check against our gas budget
-    const gasLimit = 250000n; // Use BigInt literal
-    if (estimatedGas > gasLimit) {
-        console.warn(`⚠️ WARNING: Deployment gas (${estimatedGas}) exceeds budget of ${gasLimit}`);
-    }
-
-    // Deploy with a specific gas limit to prevent unexpected high gas usage
+    // Deploy with gas buffer
     console.log("Deploying contract...");
-    const lock = await Lock.deploy(unlockTime, {
-        value: ethers.parseEther("1"),
-        gasLimit: Number(estimatedGas) + Math.floor(Number(estimatedGas) * 0.1) // Add 10% buffer
+    const contract = await Contract.deploy(...args, {
+      gasLimit: Number(estimatedGas) + Math.floor(Number(estimatedGas) * 0.1), // Add 10% buffer
     });
 
-    // Wait for the transaction to be mined
-    const deploymentTx = await lock.deploymentTransaction();
+    // Wait for deployment
+    const deploymentTx = await contract.deploymentTransaction();
     if (!deploymentTx) {
-        throw new Error("Deployment transaction not found");
+      throw new Error(`Deployment transaction not found for ${name}`);
     }
 
     const deployReceipt = await deploymentTx.wait();
     const actualGas = deployReceipt?.gasUsed || 0n;
+    const address = await contract.getAddress();
 
-    const lockAddress = await lock.getAddress();
-    console.log(`Lock contract deployed at: ${lockAddress}`);
+    console.log(`${name} deployed at: ${address}`);
     console.log(`Actual deployment gas used: ${actualGas.toString()}`);
 
     // Save deployment info
-    const deploymentInfo = {
-        contract: "Lock",
-        address: lockAddress,
-        network: network.name,
-        chainId: Number(network.chainId),
-        unlockTime,
-        deployedAt: currentTimestamp,
-        gasUsed: actualGas.toString(),
-        transactionHash: deploymentTx.hash,
+    deployments.contracts[name] = {
+      address,
+      gasUsed: actualGas.toString(),
+      transactionHash: deploymentTx.hash,
+      args,
     };
+  }
 
-    // Ensure the deployments directory exists
-    const deploymentsDir = path.join(__dirname, "../deployments");
-    if (!fs.existsSync(deploymentsDir)) {
-        fs.mkdirSync(deploymentsDir, { recursive: true });
-    }
+  // Save deployment info to the expected location
+  const deploymentPath = path.join(__dirname, "deployed_addresses.json");
+  fs.writeFileSync(deploymentPath, JSON.stringify(deployments, null, 2));
 
-    // Save deployment info to a file
-    const deploymentPath = path.join(deploymentsDir, `${network.name}-deployment.json`);
-    fs.writeFileSync(
-        deploymentPath,
-        JSON.stringify(deploymentInfo, null, 2)
-    );
-
-    console.log(`Deployment info saved to ${deploymentPath}`);
+  console.log(`\nDeployment info saved to ${deploymentPath}`);
 }
 
 // Execute the deployment
 main()
-    .then(() => process.exit(0))
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-    });
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
