@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies
         env:
           npm_config_platform: linux
-        run: npm install --legacy-peer-deps --no-optional --ignore-scripts --no-package-lock
+        run: npm install --legacy-peer-deps -f
 
       - name: Install bc
         run: sudo apt-get install -y bc
