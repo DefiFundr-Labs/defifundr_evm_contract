@@ -9,6 +9,11 @@
     "compile": "hardhat compile",
     "check:gas": "ts-node scripts/check-gas-regression.ts",
     "deploy": "hardhat run scripts/deploy.ts",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:mainnet": "hardhat run scripts/deploy.ts --network mainnet",
+    "verify:sepolia": "hardhat run scripts/verify.ts --network sepolia",
+    "verify:mainnet": "hardhat run scripts/verify.ts --network mainnet",
+    "typechain": "hardhat typechain",
     "deploy:local": "hardhat run scripts/deploy.ts --network hardhat",
     "lint": "solhint 'contracts/**/*.sol' && eslint . --ext .ts",
     "coverage": "hardhat coverage"
