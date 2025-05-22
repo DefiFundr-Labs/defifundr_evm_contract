@@ -1,97 +1,198 @@
-import "@nomicfoundation/hardhat-toolbox";
-import "hardhat-gas-reporter";
-import "@nomicfoundation/hardhat-verify";
-import "@openzeppelin/hardhat-upgrades";
-import dotenv from "dotenv";
 import { HardhatUserConfig } from "hardhat/config";
-dotenv.config();
+import "@nomicfoundation/hardhat-toolbox";
+import "@nomiclabs/hardhat-etherscan";
+import "hardhat-gas-reporter";
+import "dotenv/config";
 
-const REPORT_GAS = process.env.REPORT_GAS === "true";
-const RPC_URL = process.env.RPC_URL!;
-const CHAIN_ID = process.env.CHAIN_ID!;
-const API_URL = process.env.API_URL!;
-const BROWSER_URL = process.env.BROWSER_URL!;
-const API_SCAN_VERIFIER_KEY = process.env.API_SCAN_VERIFIER_KEY!;
+// Ensure private keys are available
+const PRIVATE_KEY_LOCAL = process.env.PRIVATE_KEY_LOCAL || "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const PRIVATE_KEY_TESTNET = process.env.PRIVATE_KEY_TESTNET || PRIVATE_KEY_LOCAL;
+const PRIVATE_KEY_MAINNET = process.env.PRIVATE_KEY_MAINNET || PRIVATE_KEY_LOCAL;
 
 const config: HardhatUserConfig = {
-  defaultNetwork: "hardhat",
-  networks: {
-    hardhat: {
-      chainId: 31337,
-    },
-    localhost: {
-      chainId: 31337,
-    },
-    sepolia: {
-      url: RPC_URL,
-      accounts: [process.env.PRIVATE_KEY!],
-      chainId: +CHAIN_ID!,
-      ignition: {
-        explorerUrl: process.env.CHAIN_BLOCKEXPLORER_URL,
-      },
-    },
-  },
+  // Solidity compiler configuration
   solidity: {
-    version: "0.8.28",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
-        details: {
-          yul: true,
+    compilers: [
+      {
+        version: "0.8.24",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200, // Optimize for deployment cost
+          },
+          viaIR: true, // Enable intermediate representation for better optimization
         },
       },
-      viaIR: true,
+      {
+        version: "0.8.20",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
+    ],
+    settings: {
+      outputSelection: {
+        "*": {
+          "*": ["storageLayout"],
+        },
+      },
     },
   },
+
+  // Network configurations
   networks: {
-    sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+    // Local development network
+    localhost: {
+      url: "http://127.0.0.1:8545",
+      accounts: [PRIVATE_KEY_LOCAL],
+      chainId: 31337,
+      gas: "auto",
+      gasPrice: "auto",
     },
+
+    // Hardhat network for testing
+    hardhat: {
+      chainId: 31337,
+      gas: "auto",
+      gasPrice: "auto",
+      accounts: {
+        mnemonic: "test test test test test test test test test test test junk",
+        count: 20,
+        accountsBalance: "10000000000000000000000", // 10,000 ETH
+      },
+      forking: process.env.MAINNET_RPC_URL ? {
+        url: process.env.MAINNET_RPC_URL,
+        enabled: false, // Enable when needed for mainnet forking
+      } : undefined,
+    },
+
+    // Ethereum Mainnet
     mainnet: {
       url: process.env.MAINNET_RPC_URL || "",
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
+      accounts: PRIVATE_KEY_MAINNET ? [PRIVATE_KEY_MAINNET] : [],
+      chainId: 1,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // Ethereum Sepolia Testnet
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/",
+      accounts: PRIVATE_KEY_TESTNET ? [PRIVATE_KEY_TESTNET] : [],
+      chainId: 11155111,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // Polygon Mainnet
+    polygon: {
+      url: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
+      accounts: PRIVATE_KEY_MAINNET ? [PRIVATE_KEY_MAINNET] : [],
+      chainId: 137,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // Polygon Mumbai Testnet (Note: Mumbai is deprecated, use Amoy)
+    polygonAmoy: {
+      url: "https://rpc-amoy.polygon.technology/",
+      accounts: PRIVATE_KEY_TESTNET ? [PRIVATE_KEY_TESTNET] : [],
+      chainId: 80002,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // BSC Mainnet
+    bsc: {
+      url: process.env.BSC_RPC_URL || "https://bsc-dataseed1.binance.org",
+      accounts: PRIVATE_KEY_MAINNET ? [PRIVATE_KEY_MAINNET] : [],
+      chainId: 56,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
+    },
+
+    // BSC Testnet
+    bscTestnet: {
+      url: "https://data-seed-prebsc-1-s1.binance.org:8545",
+      accounts: PRIVATE_KEY_TESTNET ? [PRIVATE_KEY_TESTNET] : [],
+      chainId: 97,
+      gas: "auto",
+      gasPrice: "auto",
+      timeout: 60000,
     },
   },
+
+  // Etherscan verification configuration
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY || "",
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
+      polygon: process.env.POLYGONSCAN_API_KEY || "",
+      polygonAmoy: process.env.POLYGONSCAN_API_KEY || "",
+      bsc: process.env.BSCSCAN_API_KEY || "",
+      bscTestnet: process.env.BSCSCAN_API_KEY || "",
+    },
+    customChains: [
+      {
+        network: "polygonAmoy",
+        chainId: 80002,
+        urls: {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com"
+        }
+      }
+    ]
   },
+
+  // Gas reporter configuration
   gasReporter: {
-    enabled: REPORT_GAS,
+    enabled: process.env.REPORT_GAS === "true",
     currency: "USD",
-    gasPrice: 50,
-    token: "ETH",
+    gasPrice: 20, // gwei
     coinmarketcap: process.env.COINMARKETCAP_API_KEY,
-    excludeContracts: [],
-    src: "./contracts",
-    showMethodSig: true,
-    maxMethodDiff: 10,
-    outputFile: "gas-report.txt",
+    token: "ETH",
+    gasPriceApi: "https://api.etherscan.io/api?module=proxy&action=eth_gasPrice",
+    outputFile: "gasReporterOutput.json",
+    noColors: false,
+    reportFormat: "markdown",
+    onlyCalledMethods: true,
+    excludeContracts: ["contracts/mocks/", "contracts/test/"],
+    proxyResolver: "EIP1967",
   },
+
+  // Path configurations
   paths: {
     sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+    deploy: "./deploy",
+    deployments: "./deployments",
   },
-  etherscan: {
-    apiKey: {
-      sepolia: API_SCAN_VERIFIER_KEY,
-    },
-    customChains: [
-      {
-        network: "sepolia",
-        chainId: +CHAIN_ID!,
-        urls: {
-          apiURL: API_URL,
-          browserURL: BROWSER_URL,
-        },
-      },
-    ],
-  },
+
+  // Mocha testing configuration
   mocha: {
     timeout: 40000,
+    reporter: "spec",
+    slow: 300,
+    bail: false,
+  },
+
+  // TypeChain configuration
+  typechain: {
+    outDir: "typechain-types",
+    target: "ethers-v6",
+    alwaysGenerateOverloads: false,
+    externalArtifacts: ["externalArtifacts/*.json"],
+    dontOverrideCompile: false,
   },
 };
 
